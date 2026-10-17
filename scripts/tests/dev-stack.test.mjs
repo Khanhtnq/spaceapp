@@ -28,6 +28,7 @@ import {
   resolvePorts,
   resolveRepoRoot,
   resolveStatePaths,
+  runReset,
   stopManagedProcesses
 } from "../dev-stack.mjs";
 
@@ -72,7 +73,10 @@ test("dev-stack parses OPENCODE_VERSION from Dockerfile and renders OpenCode + p
     assert.equal(result.version, version);
     assert.ok(installArgs, "Expected npm install to run when binary is missing");
     assert.equal(installArgs.cmd, "npm");
-    assert.ok(installArgs.args.includes(`opencode-ai@${version}`));
+    assert.ok(
+      installArgs.args.includes(`@opencode/cli@${version}`) ||
+        installArgs.args.includes(`opencode-ai@${version}`)
+    );
 
     const wrapperText = readFileSync(result.wrapperPath, "utf8");
     assert.equal(wrapperText, renderOpenCodeWrapper(result.opencodeBin));
@@ -143,6 +147,11 @@ test("dev-stack generates and repairs per-state-directory secrets with mode 0600
       const repairedMode = statSync(second.setupTokenPath).mode & 0o777;
       assert.equal(repairedMode, 0o600);
     }
+
+    rmSync(second.setupTokenPath, { force: true });
+    const afterClaim = ensureSecrets(stateDir, ports);
+    assert.equal(afterClaim.setupToken, null);
+    assert.equal(existsSync(afterClaim.setupTokenPath), false);
   } finally {
     rmSync(tmpDir, { recursive: true, force: true });
   }
@@ -217,7 +226,7 @@ test("dev-stack service environment isolates all /opt/spaceapp paths into .dev-s
   }
 });
 
-test("dev-stack validates port configuration and rejects duplicates or out-of-range ports", () => {
+test("dev-stack validates port configuration and rejects duplicates or out-of-range ports", async () => {
   assert.throws(
     () => resolvePorts({ SPACE_DEV_WEB_PORT: "70000" }),
     /SPACE_DEV_WEB_PORT must be an integer between 1 and 65535/
@@ -225,6 +234,14 @@ test("dev-stack validates port configuration and rejects duplicates or out-of-ra
   assert.throws(
     () => resolvePorts({ SPACE_DEV_WEB_PORT: "5910", SPACE_DEV_API_PORT: "5910" }),
     /Duplicate host port 5910/
+  );
+  await assert.rejects(
+    () => runReset(repoRoot, { env: { SPACE_DEV_STATE_DIR: "." } }),
+    /Refusing to delete unsafe SPACE_DEV_STATE_DIR/
+  );
+  await assert.rejects(
+    () => runReset(repoRoot, { env: { SPACE_DEV_STATE_DIR: ".." } }),
+    /Refusing to delete unsafe SPACE_DEV_STATE_DIR/
   );
 });
 
