@@ -10,6 +10,7 @@ const mebibyte = 1024 * 1024;
 // js-tiktoken (22 MiB, Space Gateway token counting).
 // 1.1.5 raised core again: linux/arm64 measured 1066.9 MiB and linux/amd64 1045.0 MiB (sqlite3 in the image,
 // the 1.1.5 application); the first public release run failed the arm64 build at 1050 MiB.
+// 1.1.8 added python3-minimal + libpython3-stdlib to core (~21 MiB).
 // Per-service runtime staging (scripts/stage-container-runtime.mjs) ships each image only its own
 // compiled workspaces and transitive npm closure (single-arch @temporalio/core-bridge in core,
 // no web build-only packages or node-pty in core/browser, and only @space/cli-host + node-pty in cli):
